@@ -17,9 +17,9 @@ class ItemListScreen extends StatelessWidget {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('About Item Tracker'),
-                  content: const Text(
+                builder: (context) => const AlertDialog(
+                  title: Text('About Item Tracker'),
+                  content: Text(
                       'This app allows you to track items. You can add, edit, and delete items.'),
                 ),
               );

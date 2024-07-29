@@ -1,106 +1,135 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:list_provider/screens/add_edit_item_screen.dart';
 import 'package:list_provider/models/item.dart';
-import 'package:list_provider/widgets/text_form_field.dart';
 
-class AddEditItemScreen extends StatefulWidget {
-  final Item? item;
-  final int? index;
-  final Function(Item)? onItemAdded;
-  final Function(Item)? onItemUpdated;
+void main() {
+  testWidgets('AddEditItemScreen displays correctly for editing an item',
+      (WidgetTester tester) async {
+    final testItem = Item(name: 'Test Item', description: 'Test Description');
 
-  const AddEditItemScreen({
-    super.key,
-    this.item,
-    this.index,
-    this.onItemAdded,
-    this.onItemUpdated,
-  });
-
-  @override
-  _AddEditItemScreenState createState() => _AddEditItemScreenState();
-}
-
-class _AddEditItemScreenState extends State<AddEditItemScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _descriptionController;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.item?.name ?? '');
-    _descriptionController =
-        TextEditingController(text: widget.item?.description ?? '');
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  void _saveItem() {
-    if (_formKey.currentState?.validate() ?? false) {
-      final item = Item(
-        id: widget.item?.id,
-        name: _nameController.text,
-        description: _descriptionController.text,
-      );
-      if (widget.item == null) {
-        // Adding a new item
-        widget.onItemAdded?.call(item);
-      } else {
-        // Editing an existing item
-        widget.onItemUpdated?.call(item);
-      }
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.item == null ? 'Add Item' : 'Edit Item'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              CustomTextFormField(
-                controller: _nameController,
-                labelText: 'Name',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Name is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              CustomTextFormField(
-                controller: _descriptionController,
-                labelText: 'Description',
-                isMultiline: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Description is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveItem,
-                child: Text(widget.item == null ? 'Add' : 'Save'),
-              ),
-            ],
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          item: testItem,
+          index: 0,
+          onItemUpdated: (updatedItem) {
+            // Handle item update
+          },
         ),
       ),
     );
-  }
+
+    // Check if the screen displays the existing item details
+    expect(find.text('Test Item'), findsOneWidget);
+    expect(find.text('Test Description'), findsOneWidget);
+  });
+
+  testWidgets('AddEditItemScreen adds a new item correctly',
+      (WidgetTester tester) async {
+    bool itemAdded = false;
+    Item? addedItem;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          onItemAdded: (newItem) {
+            itemAdded = true;
+            addedItem = newItem;
+          },
+        ),
+      ),
+    );
+
+    // Enter new item details
+    await tester.enterText(find.byType(TextFormField).at(0), 'New Item');
+    await tester.enterText(find.byType(TextFormField).at(1), 'New Description');
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+
+    // Verify if the new item is added
+    expect(itemAdded, isTrue);
+    expect(addedItem?.name, 'New Item');
+    expect(addedItem?.description, 'New Description');
+  });
+
+  testWidgets('AddEditItemScreen updates an existing item correctly',
+      (WidgetTester tester) async {
+    bool itemUpdated = false;
+    Item? updatedItem;
+
+    final testItem = Item(name: 'Test Item', description: 'Test Description');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          item: testItem,
+          index: 0,
+          onItemUpdated: (item) {
+            itemUpdated = true;
+            updatedItem = item;
+          },
+        ),
+      ),
+    );
+
+    // Enter updated item details
+    await tester.enterText(find.byType(TextFormField).at(0), 'Updated Item');
+    await tester.enterText(
+        find.byType(TextFormField).at(1), 'Updated Description');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+
+    // Verify if the item is updated
+    expect(itemUpdated, isTrue);
+    expect(updatedItem?.name, 'Updated Item');
+    expect(updatedItem?.description, 'Updated Description');
+  });
+
+  testWidgets('AddEditItemScreen shows validation error when fields are empty',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          onItemAdded: (newItem) {},
+        ),
+      ),
+    );
+
+    // Tap the 'Add' button without entering any data
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+
+    // Check for validation error messages
+    expect(find.text('Name is required'), findsOneWidget);
+    expect(find.text('Description is required'), findsOneWidget);
+  });
+
+  testWidgets(
+      'AddEditItemScreen shows correct button label for adding vs editing',
+      (WidgetTester tester) async {
+    final testItem = Item(name: 'Test Item', description: 'Test Description');
+
+    // Test 'Add' button
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          onItemAdded: (newItem) {},
+        ),
+      ),
+    );
+    expect(find.text('Add'), findsOneWidget);
+
+    // Test 'Save' button
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddEditItemScreen(
+          item: testItem,
+          index: 0,
+          onItemUpdated: (updatedItem) {},
+        ),
+      ),
+    );
+    expect(find.text('Save'), findsOneWidget);
+  });
 }
